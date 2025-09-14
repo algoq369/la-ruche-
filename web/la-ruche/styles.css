@@ -5,6 +5,9 @@ header, footer { padding: 16px 24px; background: #111228; border-bottom: 1px sol
 footer { border-top: 1px solid #262746; border-bottom: none; opacity: .8; }
 h1 { margin: 0; }
 .subtitle { margin: 4px 0 0 0; color: var(--muted); }
+.nav { margin-top: 8px; }
+.nav a { color: var(--text); text-decoration: none; margin-right: 10px; padding: 4px 8px; border-radius: 6px; border: 1px solid #2a2b4a; }
+.nav a.active { background: #1b1c33; }
 main { padding: 24px; max-width: 1100px; margin: 0 auto; }
 section { margin-bottom: 24px; }
 .grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px; }

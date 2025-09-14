@@ -65,6 +65,34 @@ function serveStatic(req, res) {
     }
     return false;
 }
+function getMetrics() {
+    const height = chain.chain.length - 1;
+    const head = chain.latestBlock.hash;
+    const difficulty = chain.difficulty;
+    const pending = chain.pending.length;
+    let totalTx = 0;
+    const addrs = new Set();
+    for (const b of chain.chain) {
+        totalTx += b.transactions.length;
+        for (const tx of b.transactions) {
+            if (tx.from && tx.from !== 'COINBASE')
+                addrs.add(tx.from);
+            if (tx.to)
+                addrs.add(tx.to);
+        }
+    }
+    let avgBlockTimeSec = 0;
+    if (chain.chain.length > 2) {
+        const recent = chain.chain.slice(-10);
+        const deltas = [];
+        for (let i = 1; i < recent.length; i++) {
+            deltas.push((recent[i].timestamp - recent[i - 1].timestamp) / 1000);
+        }
+        if (deltas.length)
+            avgBlockTimeSec = deltas.reduce((a, b) => a + b, 0) / deltas.length;
+    }
+    return { height, head, difficulty, pending, totalTx, uniqueAddresses: addrs.size, avgBlockTimeSec };
+}
 const server = http.createServer(async (req, res) => {
     try {
         if (!req.url)
@@ -79,6 +107,9 @@ const server = http.createServer(async (req, res) => {
         // API
         if (req.method === 'GET' && req.url === '/api/health') {
             return sendJson(res, 200, { ok: true });
+        }
+        if (req.method === 'GET' && req.url === '/api/metrics') {
+            return sendJson(res, 200, getMetrics());
         }
         if (req.method === 'GET' && req.url === '/api/genkey') {
             const wallet = generateKeyPair();
