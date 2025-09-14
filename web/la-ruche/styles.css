@@ -16,9 +16,9 @@ textarea { height: 110px; font-family: ui-monospace, SFMono-Regular, Menlo, Mona
 button { background: var(--accent); color: #111; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; }
 button:hover { filter: brightness(0.95); }
 .hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
+.row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
 table { width: 100%; border-collapse: collapse; }
 th, td { text-align: left; padding: 8px; border-bottom: 1px solid #2a2b4a; }
 #blocksTable td:nth-child(2), #blocksTable td:nth-child(3), #blocksTable td:nth-child(5) { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
 .ok { color: var(--ok); }
 .err { color: var(--err); }
-

@@ -3,6 +3,7 @@ import { readFileSync, existsSync, statSync, createReadStream } from 'fs';
 import { resolve, join, extname } from 'path';
 import { Blockchain } from '../toychain/blockchain.js';
 import { Transaction } from '../toychain/transaction.js';
+import { generateKeyPair } from '../toychain/crypto.js';
 
 // Config
 const PORT = Number(process.env.PORT || '8080');
@@ -82,6 +83,10 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && req.url === '/api/health') {
       return sendJson(res, 200, { ok: true });
     }
+    if (req.method === 'GET' && req.url === '/api/genkey') {
+      const wallet = generateKeyPair();
+      return sendJson(res, 200, wallet);
+    }
     if (req.method === 'GET' && req.url.startsWith('/api/chain')) {
       const summary = {
         height: chain.chain.length - 1,
@@ -142,4 +147,3 @@ server.listen(PORT, () => {
   // eslint-disable-next-line no-console
   console.log(`La Ruche server listening on http://localhost:${PORT}`);
 });
-

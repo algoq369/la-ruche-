@@ -36,6 +36,10 @@
         <div class="panel">
           <h3>Add Transaction</h3>
           <form id="txForm">
+            <div class="row">
+              <button type="button" id="genWallet">Generate Wallet</button>
+              <span id="walletAddr" class="hint"></span>
+            </div>
             <textarea id="wallet" placeholder='Paste wallet JSON here'>{
   "privateKeyPem": "",
   "publicKeyPem": "",
@@ -75,4 +79,3 @@
     <script src="app.js" type="module"></script>
   </body>
   </html>
-

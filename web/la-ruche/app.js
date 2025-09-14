@@ -29,6 +29,26 @@ document.addEventListener('DOMContentLoaded', () => {
   refresh();
   setInterval(refresh, 5000);
 
+  // Generate wallet button
+  const genBtn = document.getElementById('genWallet');
+  const walletTA = document.getElementById('wallet');
+  const walletAddrEl = document.getElementById('walletAddr');
+  const minerInput = document.getElementById('miner');
+  if (genBtn) {
+    genBtn.addEventListener('click', async () => {
+      try {
+        const w = await api('/api/genkey');
+        walletTA.value = JSON.stringify(w, null, 2);
+        walletAddrEl.textContent = `Address: ${w.address}`;
+        walletAddrEl.className = 'hint';
+        minerInput.value = w.address;
+      } catch (e) {
+        walletAddrEl.textContent = (e?.message) ? e.message : String(e);
+        walletAddrEl.className = 'err';
+      }
+    });
+  }
+
   $('#balanceForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const address = $('#balAddr').value.trim();
@@ -75,4 +95,3 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 });
-
