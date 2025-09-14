@@ -95,6 +95,16 @@ const server = http.createServer(async (req, res) => {
             return notFound(res);
         // Static
         if (!req.url.startsWith('/api/')) {
+            // Explicit mapping for News page to avoid any path issues
+            if (req.url === '/news' || req.url === '/news.html') {
+                const file = join(WEB_ROOT, 'news.html');
+                if (existsSync(file)) {
+                    const body = readFileSync(file);
+                    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Content-Length': body.length });
+                    res.end(body);
+                    return;
+                }
+            }
             if (serveStatic(req, res))
                 return;
             else
