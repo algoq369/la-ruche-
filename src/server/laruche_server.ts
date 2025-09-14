@@ -10,6 +10,9 @@ const PORT = Number(process.env.PORT || '8080');
 const DATA = process.env.DATA || 'toychain.data.json';
 const METRICS_FILE = process.env.METRICS_FILE || '/tmp/metrics.json';
 const METRICS_TOKEN = process.env.METRICS_TOKEN || '';
+const BINANCE_SYMBOL = process.env.BINANCE_SYMBOL || 'BTCUSDT';
+const BINANCE_INTERVAL = process.env.BINANCE_INTERVAL || '1m';
+const BINANCE_POLL_MS = Number(process.env.BINANCE_POLL_MS || '60000');
 let WEB_ROOT = resolve(process.cwd(), 'web/la-ruche');
 (() => {
   const candidates = [
@@ -117,6 +120,89 @@ function saveMetrics(m: MarketMetrics) {
 }
 
 let metricsCache: MarketMetrics = loadMetrics();
+
+// --- Binance live metrics updater ---
+async function fetchJson(url: string) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
+  return res.json();
+}
+
+function calcRSI(closes: number[], period = 14): number | null {
+  if (closes.length < period + 1) return null;
+  let gains = 0, losses = 0;
+  for (let i = 1; i <= period; i++) {
+    const change = closes[i] - closes[i - 1];
+    if (change >= 0) gains += change; else losses -= change;
+  }
+  let avgGain = gains / period;
+  let avgLoss = losses / period;
+  for (let i = period + 1; i < closes.length; i++) {
+    const change = closes[i] - closes[i - 1];
+    const gain = Math.max(0, change);
+    const loss = Math.max(0, -change);
+    avgGain = (avgGain * (period - 1) + gain) / period;
+    avgLoss = (avgLoss * (period - 1) + loss) / period;
+  }
+  if (avgLoss === 0) return 100;
+  const rs = avgGain / avgLoss;
+  return 100 - 100 / (1 + rs);
+}
+
+async function updateMetricsFromBinance() {
+  try {
+    const symbol = BINANCE_SYMBOL.toUpperCase();
+    // 1) Kliness for RSI and VWAP/std
+    const kUrl = `https://fapi.binance.com/fapi/v1/klines?symbol=${symbol}&interval=${BINANCE_INTERVAL}&limit=500`;
+    const klines = await fetchJson(kUrl) as any[];
+    const closes: number[] = klines.map(k => Number(k[4]));
+    const vols: number[] = klines.map(k => Number(k[5]));
+    const highs: number[] = klines.map(k => Number(k[2]));
+    const lows: number[] = klines.map(k => Number(k[3]));
+    // Typical price for VWAP
+    const tps: number[] = klines.map((k, i) => (highs[i] + lows[i] + closes[i]) / 3);
+    const sumVol = vols.reduce((a, b) => a + b, 0) || 1;
+    const vwap = tps.reduce((a, tp, i) => a + tp * vols[i], 0) / sumVol;
+    const mean = closes.reduce((a, b) => a + b, 0) / closes.length;
+    const sd = Math.sqrt(closes.reduce((a, b) => a + (b - mean) ** 2, 0) / closes.length);
+    const vah = vwap + sd;
+    const val = vwap - sd;
+    const rsi = calcRSI(closes, 14) ?? metricsCache.rsi;
+
+    // 2) Open interest
+    const oiUrl = `https://fapi.binance.com/fapi/v1/openInterest?symbol=${symbol}`;
+    const oiJson = await fetchJson(oiUrl) as any;
+    const openInterest = Number(oiJson.openInterest);
+
+    // 3) 24h ticker for volume and taker buy ratio (net long proxy)
+    const tUrl = `https://fapi.binance.com/fapi/v1/ticker/24hr?symbol=${symbol}`;
+    const t = await fetchJson(tUrl) as any;
+    const volume = Number(t.volume);
+    const takerBuy = Number(t.takerBuyBaseAssetVolume || 0);
+    let netLong = 0;
+    if (volume > 0) {
+      const ratio = takerBuy / volume; // 0..1
+      netLong = (ratio * 2 - 1) * 100; // -100..100
+    }
+
+    metricsCache = {
+      rsi: Number(rsi?.toFixed(2)),
+      valueArea: `VAH ${vah.toFixed(2)} / VAL ${val.toFixed(2)} (VWAP ${vwap.toFixed(2)})`,
+      openInterest,
+      volume,
+      netLong: Number(netLong.toFixed(2)),
+      updatedAt: Date.now(),
+    };
+    saveMetrics(metricsCache);
+  } catch (e) {
+    // Best-effort: keep previous metrics on failure
+  }
+}
+
+function scheduleBinance() {
+  updateMetricsFromBinance();
+  setInterval(updateMetricsFromBinance, Math.max(15000, BINANCE_POLL_MS));
+}
 
 const server = http.createServer(async (req, res) => {
   try {
@@ -233,4 +319,6 @@ const server = http.createServer(async (req, res) => {
 server.listen(PORT, () => {
   // eslint-disable-next-line no-console
   console.log(`La Ruche server listening on http://localhost:${PORT}`);
+  // Start Binance updater if network is available
+  try { scheduleBinance(); } catch {}
 });
