@@ -9,7 +9,25 @@ const PORT = Number(process.env.PORT || '8080');
 const DATA = process.env.DATA || 'toychain.data.json';
 const METRICS_FILE = process.env.METRICS_FILE || '/tmp/metrics.json';
 const METRICS_TOKEN = process.env.METRICS_TOKEN || '';
-const WEB_ROOT = resolve(process.cwd(), 'web/la-ruche');
+let WEB_ROOT = resolve(process.cwd(), 'web/la-ruche');
+(() => {
+    const candidates = [
+        WEB_ROOT,
+        resolve(process.cwd(), '../web/la-ruche'),
+        resolve(process.cwd(), '../../web/la-ruche'),
+        resolve(process.cwd(), '../../../web/la-ruche'),
+        resolve(process.cwd(), 'dist/web/la-ruche'),
+    ];
+    for (const p of candidates) {
+        try {
+            if (existsSync(p)) {
+                WEB_ROOT = p;
+                break;
+            }
+        }
+        catch { }
+    }
+})();
 const chain = new Blockchain(3, 50, DATA);
 function sendJson(res, status, obj) {
     const body = JSON.stringify(obj);
@@ -102,6 +120,23 @@ const server = http.createServer(async (req, res) => {
                     const body = readFileSync(file);
                     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Content-Length': body.length });
                     res.end(body);
+                    return;
+                }
+            }
+            // Map to news assets directly just in case
+            if (req.url === '/news.js') {
+                const file = join(WEB_ROOT, 'news.js');
+                if (existsSync(file)) {
+                    res.writeHead(200, { 'Content-Type': 'application/javascript; charset=utf-8' });
+                    createReadStream(file).pipe(res);
+                    return;
+                }
+            }
+            if (req.url === '/news.json') {
+                const file = join(WEB_ROOT, 'news.json');
+                if (existsSync(file)) {
+                    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+                    createReadStream(file).pipe(res);
                     return;
                 }
             }
