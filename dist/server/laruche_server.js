@@ -7,6 +7,8 @@ import { generateKeyPair } from '../toychain/crypto.js';
 // Config
 const PORT = Number(process.env.PORT || '8080');
 const DATA = process.env.DATA || 'toychain.data.json';
+const METRICS_FILE = process.env.METRICS_FILE || '/tmp/metrics.json';
+const METRICS_TOKEN = process.env.METRICS_TOKEN || '';
 const WEB_ROOT = resolve(process.cwd(), 'web/la-ruche');
 const chain = new Blockchain(3, 50, DATA);
 function sendJson(res, status, obj) {
@@ -65,34 +67,28 @@ function serveStatic(req, res) {
     }
     return false;
 }
-function getMetrics() {
-    const height = chain.chain.length - 1;
-    const head = chain.latestBlock.hash;
-    const difficulty = chain.difficulty;
-    const pending = chain.pending.length;
-    let totalTx = 0;
-    const addrs = new Set();
-    for (const b of chain.chain) {
-        totalTx += b.transactions.length;
-        for (const tx of b.transactions) {
-            if (tx.from && tx.from !== 'COINBASE')
-                addrs.add(tx.from);
-            if (tx.to)
-                addrs.add(tx.to);
-        }
-    }
-    let avgBlockTimeSec = 0;
-    if (chain.chain.length > 2) {
-        const recent = chain.chain.slice(-10);
-        const deltas = [];
-        for (let i = 1; i < recent.length; i++) {
-            deltas.push((recent[i].timestamp - recent[i - 1].timestamp) / 1000);
-        }
-        if (deltas.length)
-            avgBlockTimeSec = deltas.reduce((a, b) => a + b, 0) / deltas.length;
-    }
-    return { height, head, difficulty, pending, totalTx, uniqueAddresses: addrs.size, avgBlockTimeSec };
+function defaultMetrics() {
+    return { rsi: 50, valueArea: '-', openInterest: 0, volume: 0, netLong: 0, updatedAt: Date.now() };
 }
+function loadMetrics() {
+    try {
+        if (existsSync(METRICS_FILE)) {
+            const raw = readFileSync(METRICS_FILE, 'utf8');
+            const obj = JSON.parse(raw);
+            return { ...defaultMetrics(), ...obj };
+        }
+    }
+    catch { }
+    return defaultMetrics();
+}
+function saveMetrics(m) {
+    try {
+        const data = JSON.stringify(m, null, 2);
+        require('fs').writeFileSync(METRICS_FILE, data);
+    }
+    catch { }
+}
+let metricsCache = loadMetrics();
 const server = http.createServer(async (req, res) => {
     try {
         if (!req.url)
@@ -109,7 +105,7 @@ const server = http.createServer(async (req, res) => {
             return sendJson(res, 200, { ok: true });
         }
         if (req.method === 'GET' && req.url === '/api/metrics') {
-            return sendJson(res, 200, getMetrics());
+            return sendJson(res, 200, metricsCache);
         }
         if (req.method === 'GET' && req.url === '/api/genkey') {
             const wallet = generateKeyPair();
@@ -167,6 +163,29 @@ const server = http.createServer(async (req, res) => {
             catch (e) {
                 return sendJson(res, 400, { error: e?.message || String(e) });
             }
+        }
+        if (req.method === 'POST' && req.url === '/api/metrics') {
+            if (METRICS_TOKEN) {
+                const token = req.headers['x-admin-token'] || '';
+                if (token !== METRICS_TOKEN)
+                    return sendJson(res, 401, { error: 'unauthorized' });
+            }
+            const body = await readBody(req);
+            const next = { ...metricsCache };
+            if (typeof body.rsi === 'number' && isFinite(body.rsi))
+                next.rsi = Math.max(0, Math.min(100, body.rsi));
+            if (typeof body.valueArea === 'string')
+                next.valueArea = String(body.valueArea);
+            if (typeof body.openInterest === 'number' && isFinite(body.openInterest))
+                next.openInterest = body.openInterest;
+            if (typeof body.volume === 'number' && isFinite(body.volume))
+                next.volume = body.volume;
+            if (typeof body.netLong === 'number' && isFinite(body.netLong))
+                next.netLong = Math.max(-100, Math.min(100, body.netLong));
+            next.updatedAt = Date.now();
+            metricsCache = next;
+            saveMetrics(metricsCache);
+            return sendJson(res, 200, { ok: true, metrics: metricsCache });
         }
         notFound(res);
     }
