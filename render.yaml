@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: la-ruche
+    env: node
+    plan: starter
+    buildCommand: npm install && npm run build
+    startCommand: npm run laruche:server
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATA
+        value: /data/toychain.data.json
+    disk:
+      name: laruche-data
+      mountPath: /data
+      sizeGB: 1

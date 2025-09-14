@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>La Ruche — Toy Blockchain</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header>
+      <h1>La Ruche</h1>
+      <p class="subtitle">A tiny educational blockchain</p>
+    </header>
+
+    <main>
+      <section id="status">
+        <h2>Status</h2>
+        <div class="grid">
+          <div><strong>Height</strong><div id="height">–</div></div>
+          <div><strong>Head</strong><div id="head">–</div></div>
+          <div><strong>Difficulty</strong><div id="difficulty">–</div></div>
+          <div><strong>Reward</strong><div id="reward">–</div></div>
+        </div>
+      </section>
+
+      <section id="actions">
+        <h2>Actions</h2>
+        <div class="panel">
+          <h3>Balance</h3>
+          <form id="balanceForm">
+            <input type="text" id="balAddr" placeholder="Address" />
+            <button type="submit">Check</button>
+          </form>
+          <div id="balOut"></div>
+        </div>
+        <div class="panel">
+          <h3>Add Transaction</h3>
+          <form id="txForm">
+            <textarea id="wallet" placeholder='Paste wallet JSON here'>{
+  "privateKeyPem": "",
+  "publicKeyPem": "",
+  "address": ""
+}</textarea>
+            <input type="text" id="to" placeholder="To address" />
+            <input type="number" id="amount" placeholder="Amount" value="1" min="1" />
+            <input type="number" id="fee" placeholder="Fee" value="1" min="0" />
+            <button type="submit">Queue Tx</button>
+            <div class="hint">Use npm run toy:cli -- genkey wallet.json to generate a wallet JSON</div>
+          </form>
+          <div id="txOut"></div>
+        </div>
+        <div class="panel">
+          <h3>Mine</h3>
+          <form id="mineForm">
+            <input type="text" id="miner" placeholder="Miner address" />
+            <button type="submit">Mine Block</button>
+          </form>
+          <div id="mineOut"></div>
+        </div>
+      </section>
+
+      <section id="blocks">
+        <h2>Recent Blocks</h2>
+        <table id="blocksTable">
+          <thead><tr><th>#</th><th>Hash</th><th>Prev</th><th>Txs</th><th>Merkle</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </section>
+    </main>
+
+    <footer>
+      <span>La Ruche — for learning only</span>
+    </footer>
+
+    <script src="app.js" type="module"></script>
+  </body>
+  </html>
+
